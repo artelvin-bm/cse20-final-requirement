@@ -45,7 +45,7 @@ class Listing {
     this.description,
   });
 
-  /// Builds a Listing from a JSON map (for example decoded API response).
+  /// Builds a Listing from a JSON map (for example decoded favorites storage).
   factory Listing.fromJson(Map<String, dynamic> json) {
     return Listing(
       title: json['title'] as String? ?? 'Rental',

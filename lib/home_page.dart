@@ -68,8 +68,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _scrollController = ScrollController()
-      ..addListener(_onScroll);
+    _scrollController = ScrollController()..addListener(_onScroll);
     _loadFavorites();
     _fetchRoomsFromRentCast();
   }
@@ -95,7 +94,8 @@ class _HomePageState extends State<HomePage> {
         Future.delayed(const Duration(milliseconds: 500), () {
           if (!mounted) return;
           setState(() {
-            _itemsToShow = (_itemsToShow + 15).clamp(0, total);
+            _itemsToShow =
+                (_itemsToShow + 15).clamp(0, total).toInt(); // keep int
             _isLoadingMore = false;
           });
         });
@@ -132,7 +132,7 @@ class _HomePageState extends State<HomePage> {
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
 
-        final rooms = data.map<Listing>((listing) {
+        final rawRooms = data.map<Listing>((listing) {
           final addressLine1 = listing['addressLine1'] ?? 'Rental';
           final city = listing['city'] ?? '';
           final state = listing['state'] ?? '';
@@ -158,6 +158,17 @@ class _HomePageState extends State<HomePage> {
             description: listing['description'],
           );
         }).toList();
+
+        // Remove duplicates based on address + location only.
+        final Set<String> seen = <String>{};
+        final List<Listing> rooms = <Listing>[];
+
+        for (final room in rawRooms) {
+          final key = '${room.title}|${room.location}';
+          if (seen.add(key)) {
+            rooms.add(room);
+          }
+        }
 
         // Build a sorted list of unique locations for the filter chips.
         final locations = rooms
@@ -237,13 +248,18 @@ class _HomePageState extends State<HomePage> {
           _customMaxPrice != null) {
         filtered = filtered
             .where((r) =>
-        r.price >= _customMinPrice! &&
-            r.price <= _customMaxPrice!)
+        r.price >= _customMinPrice! && r.price <= _customMaxPrice!)
             .toList();
       }
     }
 
-    return filtered;
+    // Final UI-level dedupe so a listing can appear only once.
+    final Map<String, Listing> byKey = {};
+    for (final room in filtered) {
+      final key = '${room.title}|${room.location}';
+      byKey.putIfAbsent(key, () => room);
+    }
+    return byKey.values.toList();
   }
 
   /// Adds or removes a listing from the favorites list.
